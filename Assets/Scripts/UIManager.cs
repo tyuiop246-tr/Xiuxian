@@ -20,6 +20,7 @@ public class UIManager : MonoBehaviour
     private System.Action<TechniqueData> onSelect;
 
     private Texture2D darkTex, cardTex, barTex, qiTex;
+    private Font chineseFont;
     private GUIStyle titleStyle, subStyle, hintStyle, hudStyle, buttonStyle, cardNameStyle, cardDescStyle, toastStyle, invisibleButton;
 
     public static void EnsureCreated()
@@ -31,6 +32,16 @@ public class UIManager : MonoBehaviour
     void Awake()
     {
         Instance = this;
+        chineseFont = Resources.Load<Font>("Fonts/DaoFont");
+        if (chineseFont == null)
+        {
+            chineseFont = Font.CreateDynamicFontFromOSFont(new[] { "Microsoft YaHei", "SimHei", "Arial" }, 18);
+            Debug.LogWarning("[道途] 未找到打包字体，回退系统字体（WebGL 下中文可能不显示）");
+        }
+        else
+        {
+            Debug.Log("[道途] 已加载打包中文字体");
+        }
         darkTex = MakeTex(new Color(0.02f, 0.03f, 0.08f, 0.86f));
         cardTex = MakeTex(new Color(0.1f, 0.16f, 0.24f, 0.96f));
         barTex = MakeTex(new Color(0f, 0f, 0f, 0.5f));
@@ -63,9 +74,10 @@ public class UIManager : MonoBehaviour
         invisibleButton.border = new RectOffset(0, 0, 0, 0);
     }
 
-    static GUIStyle Style(float size, TextAnchor anchor, Color color)
+    GUIStyle Style(float size, TextAnchor anchor, Color color)
     {
         var s = new GUIStyle(GUI.skin.label);
+        s.font = chineseFont;
         s.fontSize = Mathf.Max(12, Mathf.RoundToInt(size));
         s.alignment = anchor;
         s.normal.textColor = color;
