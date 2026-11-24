@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f60718293a4b5c6d7e8f01, type: 3}
+  m_Name: 凌空虚渡
+  m_EditorClassIdentifier: 
+  techniqueName: 凌空虚渡
+  description: 腾空更高，可越过禁制
+  category: 0
+  effect: 1
+  iconColor: {r: 0.5, g: 1, b: 0.7, a: 1}
+  value: 3
+  value2: 0
+  maxStack: 3
