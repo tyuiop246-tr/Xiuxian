@@ -179,12 +179,34 @@ public class GameManager : MonoBehaviour
         RefreshHUD();
     }
 
-    // 广告复活：看视频后原地复活 + 3秒无敌
-    public void WatchAdRevive()
+    public int ReviveStoneCost => 10;
+
+    // 复活条件：境界仍在炼气期以上，可倒退一级换复活
+    public bool CanReviveByRealm => state == GameState.GameOver && !runCommitted && reviveCount < 3 && realmIndex > 0;
+    // 复活条件：持有至少 10 灵石
+    public bool CanReviveByStone => state == GameState.GameOver && !runCommitted && reviveCount < 3 && MetaSystem.Stones >= ReviveStoneCost;
+
+    public string PrevRealmName => RealmNames[Mathf.Max(0, realmIndex - 1)];
+
+    // 代价一：境界倒退一级，灵气压到当前上限以下避免立刻反弹突破
+    public void ReviveByRealm()
     {
-        if (state != GameState.GameOver || runCommitted || reviveCount >= 3) return;
-        // Demo 无真实广告 SDK：有复活符就消耗一个，没有则视为已看完广告，保证演示可用
-        if (MetaSystem.Revives > 0) MetaSystem.UseRevive();
+        if (!CanReviveByRealm) return;
+        realmIndex--;
+        qi = Mathf.Min(qi, QiNeeded - 1);
+        DoRevive("境界倒退至" + CurrentRealm + "！无敌 3 秒");
+    }
+
+    // 代价二：扣除 10 灵石
+    public void ReviveByStone()
+    {
+        if (!CanReviveByStone) return;
+        MetaSystem.AddStones(-ReviveStoneCost);
+        DoRevive("消耗 " + ReviveStoneCost + " 灵石复活！无敌 3 秒");
+    }
+
+    void DoRevive(string message)
+    {
         reviveCount++;
         state = GameState.Playing;
         isGameOver = false;
@@ -192,7 +214,7 @@ public class GameManager : MonoBehaviour
         UIManager.Instance.HideGameOver();
         if (PlayerController.Instance != null) PlayerController.Instance.ReviveWithInvincibility(3f);
         EffectsController.Instance.Shake(0.2f, 0.4f);
-        UIManager.Instance.ShowToast("广告复活！无敌 3 秒");
+        UIManager.Instance.ShowToast(message);
         RefreshHUD();
     }
 

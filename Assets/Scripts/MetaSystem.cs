@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// 局外养成与资源循环系统（存档、灵石、洞府、任务、成就、复活符）
+// 局外养成与资源循环系统（存档、灵石、洞府、任务、成就、签到）
 // 对标 JD：养成 / 任务 / 成就 / 活跃 / 道具 / 商城 / 广告变现
 public static class MetaSystem
 {
@@ -10,7 +10,6 @@ public static class MetaSystem
     const string KHeart = "Meta_HeartLv";
     const string KSpeed = "Meta_SpeedLv";
     const string KLuck = "Meta_LuckLv";
-    const string KRunes = "Meta_Revives";
     const string KTotalRuns = "Meta_TotalRuns";
     const string KMaxRealm = "Meta_MaxRealm";
     const string KBestDist = "Meta_BestDist";
@@ -31,7 +30,6 @@ public static class MetaSystem
     public static int HeartLv => PlayerPrefs.GetInt(KHeart, 0);
     public static int SpeedLv => PlayerPrefs.GetInt(KSpeed, 0);
     public static int LuckLv => PlayerPrefs.GetInt(KLuck, 0);
-    public static int Revives => PlayerPrefs.GetInt(KRunes, 1);
     public static int TotalRuns => PlayerPrefs.GetInt(KTotalRuns, 0);
     public static int MaxRealm => PlayerPrefs.GetInt(KMaxRealm, 0);
     public static int BestDist => PlayerPrefs.GetInt(KBestDist, 0);
@@ -82,13 +80,6 @@ public static class MetaSystem
     public static bool TryRollStartTechnique()
     {
         return UnityEngine.Random.value < LuckLv * 0.1f;
-    }
-
-    public static void UseRevive()
-    {
-        if (Revives <= 0) return;
-        PlayerPrefs.SetInt(KRunes, Revives - 1);
-        PlayerPrefs.Save();
     }
 
     // 每日任务：按本地日期自动重置
@@ -190,7 +181,7 @@ public static class MetaSystem
     // 活跃：七日签到
     public static int SignDays => PlayerPrefs.GetInt(KSignDays, 0);
     public static bool CanSignToday => PlayerPrefs.GetString("Meta_SignDate", "") != Today;
-    public static int[] SignRewards = { 20, 30, 50, 0, 80, 100, 200 };
+    public static int[] SignRewards = { 20, 30, 50, 60, 80, 100, 200 };
 
     public static int SignToday()
     {
@@ -202,8 +193,7 @@ public static class MetaSystem
         PlayerPrefs.SetInt(KSignDays, days);
         PlayerPrefs.SetString("Meta_SignDate", Today);
         int reward = SignRewards[days - 1];
-        if (reward > 0) AddStones(reward);
-        else { PlayerPrefs.SetInt(KRunes, Revives + 1); }
+        AddStones(reward);
         PlayerPrefs.Save();
         return reward;
     }

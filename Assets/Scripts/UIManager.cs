@@ -101,7 +101,7 @@ public class UIManager : MonoBehaviour
         GUI.Label(new Rect(w * 0.05f, h * 0.16f, w * 0.9f, h * 0.1f), "道途 · 无尽飞升", titleStyle);
         GUI.Label(new Rect(w * 0.05f, h * 0.27f, w * 0.9f, h * 0.05f), "修仙 · 跑酷 · Roguelike", subStyle);
         GUI.Label(new Rect(w * 0.05f, h * 0.33f, w * 0.9f, h * 0.05f), menuBest, hintStyle);
-        GUI.Label(new Rect(w * 0.05f, h * 0.38f, w * 0.9f, h * 0.05f), "灵石：" + stones + "    复活符：" + MetaSystem.Revives, subStyle);
+        GUI.Label(new Rect(w * 0.05f, h * 0.38f, w * 0.9f, h * 0.05f), "灵石：" + stones + "（死亡时可用 10 灵石复活）", subStyle);
 
         if (GUI.Button(new Rect(w * 0.36f, h * 0.46f, w * 0.28f, h * 0.08f), "开始御剑  (空格)", buttonStyle))
             if (GameManager.instance != null) GameManager.instance.StartGame();
@@ -153,20 +153,36 @@ public class UIManager : MonoBehaviour
         GUI.Label(new Rect(w * 0.05f, h * 0.12f, w * 0.9f, h * 0.1f), "道 心 破 碎", overTitle);
         GUI.Label(new Rect(w * 0.05f, h * 0.26f, w * 0.9f, h * 0.14f), overStats, hintStyle);
 
-        // 广告复活 / 双倍结算（JD：广告变现）
-        if (canRevive && GUI.Button(new Rect(w * 0.28f, h * 0.42f, w * 0.44f, h * 0.075f),
-            "看视频原地复活 + 无敌3秒", buttonStyle))
+        // 复活二选一：境界倒退 / 扣 10 灵石（都付不起就只能重开）
+        GameManager gm = GameManager.instance;
+        bool canRealm = canRevive && gm != null && gm.CanReviveByRealm;
+        bool canStone = canRevive && gm != null && gm.CanReviveByStone;
+
+        if (canRealm && GUI.Button(new Rect(w * 0.22f, h * 0.38f, w * 0.56f, h * 0.07f),
+            "境界倒退一级复活（" + gm.CurrentRealm + " → " + gm.PrevRealmName + "）+ 无敌3秒", buttonStyle))
         {
-            if (GameManager.instance != null) GameManager.instance.WatchAdRevive();
+            gm.ReviveByRealm();
         }
-        if (runStones > 0 && GUI.Button(new Rect(w * 0.28f, h * 0.51f, w * 0.44f, h * 0.075f),
-            "看视频灵石双倍结算（+" + runStones + "）", buttonStyle))
+        if (canStone && GUI.Button(new Rect(w * 0.22f, h * 0.46f, w * 0.56f, h * 0.07f),
+            "消耗 " + gm.ReviveStoneCost + " 灵石原地复活 + 无敌3秒", buttonStyle))
         {
-            if (GameManager.instance != null) GameManager.instance.WatchAdDouble();
+            gm.ReviveByStone();
+        }
+        if (!canRealm && !canStone)
+        {
+            GUI.Label(new Rect(w * 0.08f, h * 0.40f, w * 0.84f, h * 0.09f),
+                "境界已至炼气期，且灵石不足 " + (gm != null ? gm.ReviveStoneCost : 10) + "，无法复活，只能重新挑战",
+                hintStyle);
         }
 
-        if (GUI.Button(new Rect(w * 0.33f, h * 0.64f, w * 0.34f, h * 0.09f), "再入仙道  (R)", buttonStyle))
-            if (GameManager.instance != null) GameManager.instance.Restart();
+        if (runStones > 0 && GUI.Button(new Rect(w * 0.24f, h * 0.55f, w * 0.52f, h * 0.07f),
+            "看视频灵石双倍结算（+" + runStones + "）", buttonStyle))
+        {
+            if (gm != null) gm.WatchAdDouble();
+        }
+
+        if (GUI.Button(new Rect(w * 0.33f, h * 0.68f, w * 0.34f, h * 0.09f), "再入仙道  (R)", buttonStyle))
+            if (gm != null) gm.Restart();
     }
 
     // 修仙洞府（局外养成）
@@ -268,7 +284,7 @@ public class UIManager : MonoBehaviour
         if (MetaSystem.CanSignToday)
         {
             int reward = MetaSystem.SignToday();
-            ShowToast(reward > 0 ? "签到成功！+" + reward + " 灵石" : "签到成功！获得复活符");
+            ShowToast("签到成功！+" + reward + " 灵石");
             stones = MetaSystem.Stones;
         }
     }
