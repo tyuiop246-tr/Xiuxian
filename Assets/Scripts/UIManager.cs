@@ -111,7 +111,7 @@ public class UIManager : MonoBehaviour
             if (GameManager.instance != null) GameManager.instance.StartGame();
         }
         GUI.Label(new Rect(w * 0.05f, h * 0.68f, w * 0.9f, h * 0.1f),
-            "A / D 或 ← → 横移     空格 腾空     Shift 冲刺     C 切换男/女角色", hintStyle);
+            "A / D 或 ← → 横移     空格 跳跃     空格 开始     Shift 冲刺     C 切换男/女角色", hintStyle);
     }
 
     void DrawHUD(float w, float h)
