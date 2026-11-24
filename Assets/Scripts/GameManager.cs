@@ -179,16 +179,12 @@ public class GameManager : MonoBehaviour
         RefreshHUD();
     }
 
-    // 广告复活：看视频后原地复活 + 3秒无敌（可先用复活符替代）
+    // 广告复活：看视频后原地复活 + 3秒无敌
     public void WatchAdRevive()
     {
         if (state != GameState.GameOver || runCommitted || reviveCount >= 3) return;
-        if (MetaSystem.Revives <= 0)
-        {
-            UIManager.Instance.ShowToast("复活符不足！商城/签到可获得");
-            return;
-        }
-        MetaSystem.UseRevive();
+        // Demo 无真实广告 SDK：有复活符就消耗一个，没有则视为已看完广告，保证演示可用
+        if (MetaSystem.Revives > 0) MetaSystem.UseRevive();
         reviveCount++;
         state = GameState.Playing;
         isGameOver = false;
@@ -235,11 +231,8 @@ public class GameManager : MonoBehaviour
             RealmNames[Mathf.Min(bestRealm, RealmNames.Length - 1)], lastRunStones, MetaSystem.Stones, reviveCount < 3);
     }
 
-    // 直接关闭页面 / 切到后台时兜底结算，保证已玩进度不丢失（WebGL 下尤其重要）
-    void OnApplicationPause(bool paused)
-    {
-        if (paused && state == GameState.GameOver) CommitRun(1);
-    }
+    // 仅在真正退出时兜底结算。注意：切后台（编辑器失焦 / 网页切标签）绝不能结算，
+    // 否则 runCommitted 会被提前置位，导致死亡面板的复活 / 双倍按钮全部失效。
     void OnApplicationQuit()
     {
         if (state == GameState.GameOver) CommitRun(1);
