@@ -7,13 +7,12 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager instance;
 
-    // 保留场景里已序列化的旧字段，保证兼容
     public bool isGameOver = false;
     public int score = 0;
 
     public GameState state = GameState.Ready;
     public float scrollSpeed = 10f;
-    public float encounterInterval = 300f; // 奇遇间隔（米），Inspector 可调为 1000
+    public float encounterInterval = 300f;
 
     public static readonly string[] RealmNames =
     {
@@ -24,18 +23,23 @@ public class GameManager : MonoBehaviour
     public int realmIndex = 0;
     public int qi = 0;
     public float distance = 0f;
+    public int techniquesGained = 0;
+    public int reviveCount = 0;
 
     public int bestDistance = 0;
     public int bestRealm = 0;
+    public int lastRunStones = 0;
 
     private float nextEncounterDistance;
     private TechniqueLibrary library;
+    private bool runCommitted = false;
 
     const string KeyDistance = "Dao_BestDistance";
     const string KeyRealm = "Dao_BestRealm";
 
     public int QiNeeded => 10 + realmIndex * 8;
     public string CurrentRealm => RealmNames[Mathf.Min(realmIndex, RealmNames.Length - 1)];
+    public int StonesEarned => Mathf.FloorToInt(distance / 100f) + qi / 10;
 
     void Awake()
     {
@@ -70,14 +74,9 @@ public class GameManager : MonoBehaviour
         }
 
         if (state == GameState.Ready && (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)))
-        {
             StartGame();
-        }
-
         if (state == GameState.GameOver && Input.GetKeyDown(KeyCode.R))
-        {
             Restart();
-        }
     }
 
     void RefreshHUD()
@@ -85,7 +84,8 @@ public class GameManager : MonoBehaviour
         if (UIManager.Instance == null) return;
         int shield = PlayerController.Instance != null ? PlayerController.Instance.Shields : 0;
         UIManager.Instance.UpdateHUD(CurrentRealm, qi, QiNeeded, Mathf.FloorToInt(distance), shield,
-            PlayerController.Instance != null ? PlayerController.Instance.GetTechniqueSummary() : "");
+            PlayerController.Instance != null ? PlayerController.Instance.GetTechniqueSummary() : "",
+            MetaSystem.Stones, StonesEarned);
     }
 
     public void StartGame()
@@ -93,28 +93,40 @@ public class GameManager : MonoBehaviour
         if (state != GameState.Ready) return;
         state = GameState.Playing;
         isGameOver = false;
+        techniquesGained = 0;
+        reviveCount = 0;
+        runCommitted = false;
         Time.timeScale = 1f;
         UIManager.Instance.HideMainMenu();
+        UIManager.Instance.HideGameOver();
+        if (PlayerController.Instance != null) PlayerController.Instance.ApplyMetaBonuses();
+        if (MetaSystem.TryRollStartTechnique())
+        {
+            var t = PickThree()[0];
+            if (t != null && PlayerController.Instance != null)
+            {
+                PlayerController.Instance.ApplyTechnique(t);
+                techniquesGained++;
+                UIManager.Instance.ShowToast("顿悟！开局功法：" + t.techniqueName);
+            }
+        }
         EffectsController.Instance.Shake(0.06f, 0.15f);
     }
 
     public void Restart()
     {
+        if (state == GameState.GameOver) CommitRun(1);
         Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
-    public void AddScore()
-    {
-        AddQi(1);
-    }
+    public void AddScore() { AddQi(1); }
 
     public void AddQi(int amount)
     {
         if (state != GameState.Playing) return;
         score += amount;
         qi += amount;
-
         while (qi >= QiNeeded)
         {
             qi -= QiNeeded;
@@ -132,8 +144,7 @@ public class GameManager : MonoBehaviour
     {
         state = GameState.Paused;
         Time.timeScale = 0f;
-        TechniqueData[] choices = PickThree();
-        UIManager.Instance.ShowEncounter(choices, OnTechniqueChosen);
+        UIManager.Instance.ShowEncounter(PickThree(), OnTechniqueChosen);
     }
 
     TechniqueData[] PickThree()
@@ -144,12 +155,10 @@ public class GameManager : MonoBehaviour
             for (int i = 0; i < 3; i++) result[i] = TechniqueFallback.Create(i);
             return result;
         }
-
         var used = new System.Collections.Generic.HashSet<int>();
         for (int i = 0; i < 3 && i < library.techniques.Length; i++)
         {
-            int idx;
-            int guard = 0;
+            int idx, guard = 0;
             do { idx = Random.Range(0, library.techniques.Length); guard++; }
             while (used.Contains(idx) && guard < 50);
             used.Add(idx);
@@ -162,11 +171,53 @@ public class GameManager : MonoBehaviour
     {
         if (tech == null) return;
         if (PlayerController.Instance != null) PlayerController.Instance.ApplyTechnique(tech);
+        techniquesGained++;
         Time.timeScale = 1f;
         state = GameState.Playing;
         UIManager.Instance.HideEncounter();
         UIManager.Instance.ShowToast("获得功法：" + tech.techniqueName);
         RefreshHUD();
+    }
+
+    // 广告复活：看视频后原地复活 + 3秒无敌（可先用复活符替代）
+    public void WatchAdRevive()
+    {
+        if (state != GameState.GameOver || runCommitted || reviveCount >= 3) return;
+        if (MetaSystem.Revives <= 0)
+        {
+            UIManager.Instance.ShowToast("复活符不足！商城/签到可获得");
+            return;
+        }
+        MetaSystem.UseRevive();
+        reviveCount++;
+        state = GameState.Playing;
+        isGameOver = false;
+        Time.timeScale = 1f;
+        UIManager.Instance.HideGameOver();
+        if (PlayerController.Instance != null) PlayerController.Instance.ReviveWithInvincibility(3f);
+        EffectsController.Instance.Shake(0.2f, 0.4f);
+        UIManager.Instance.ShowToast("广告复活！无敌 3 秒");
+        RefreshHUD();
+    }
+
+    // 广告双倍结算
+    public void WatchAdDouble()
+    {
+        if (state != GameState.GameOver || runCommitted || lastRunStones <= 0) return;
+        CommitRun(2);
+        UIManager.Instance.ShowToast("广告双倍！本局共 +" + lastRunStones + " 灵石");
+        UIManager.Instance.RefreshGameOverStones(lastRunStones, MetaSystem.Stones);
+    }
+
+    // 全局唯一的本局结算出口：广告复活不结算，避免重复发奖 / 重复记任务
+    public void CommitRun(int multiplier)
+    {
+        if (runCommitted || state == GameState.Ready) return;
+        runCommitted = true;
+        int earned = StonesEarned * Mathf.Max(1, multiplier);
+        lastRunStones = earned;
+        MetaSystem.AddStones(earned);
+        MetaSystem.RecordRun(Mathf.FloorToInt(distance), score, realmIndex, techniquesGained);
     }
 
     public void GameOver()
@@ -179,8 +230,19 @@ public class GameManager : MonoBehaviour
             EffectsController.Instance.Burst(PlayerController.Instance.transform.position, new Color(1f, 0.3f, 0.3f), 26);
 
         SaveIfBetter();
+        lastRunStones = StonesEarned;
         UIManager.Instance.ShowGameOver(Mathf.FloorToInt(distance), CurrentRealm, score, bestDistance,
-            RealmNames[Mathf.Min(bestRealm, RealmNames.Length - 1)]);
+            RealmNames[Mathf.Min(bestRealm, RealmNames.Length - 1)], lastRunStones, MetaSystem.Stones, reviveCount < 3);
+    }
+
+    // 直接关闭页面 / 切到后台时兜底结算，保证已玩进度不丢失（WebGL 下尤其重要）
+    void OnApplicationPause(bool paused)
+    {
+        if (paused && state == GameState.GameOver) CommitRun(1);
+    }
+    void OnApplicationQuit()
+    {
+        if (state == GameState.GameOver) CommitRun(1);
     }
 
     void LoadSave()

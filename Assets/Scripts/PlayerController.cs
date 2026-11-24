@@ -81,6 +81,30 @@ public class PlayerController : MonoBehaviour
             UIManager.Instance.ShowToast(isFemale ? "切换角色：白衣仙子" : "切换角色：白衣剑修");
     }
 
+    // 应用局外洞府养成加成
+    public void ApplyMetaBonuses()
+    {
+        moveSpeed = 8f + MetaSystem.StartSpeedBonus;
+        shields = MetaSystem.StartShields;
+        Debug.Log("[道途] 洞府加成：移速+" + MetaSystem.StartSpeedBonus + " 护体+" + shields);
+    }
+
+    // 广告复活：原地复活 + 短暂无敌 + 清除周围障碍
+    public void ReviveWithInvincibility(float seconds)
+    {
+        invincibleTimer = seconds;
+        if (rb != null)
+        {
+            rb.velocity = Vector2.zero;
+            transform.position = new Vector3(-5f, 0f, 0f);
+        }
+        foreach (var c in Physics2D.OverlapCircleAll(transform.position, 3f))
+        {
+            if (c.CompareTag("Obstacle")) ReleaseOrDestroy(c.gameObject);
+        }
+        EffectsController.Instance.Burst(transform.position, new Color(1f, 0.9f, 0.3f), 20);
+    }
+
     void Update()
     {
         if (GameManager.instance == null) return;
