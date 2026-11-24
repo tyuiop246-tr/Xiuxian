@@ -4,7 +4,9 @@
 
 ## 在线试玩
 
-> 待上传 itch.io 后填入公开 URL，例如：`https://你的用户名.itch.io/dao-endless-ascension`
+[点击这里直接玩网页版（GitHub Pages）](https://tyuiop246-tr.github.io/Xiuxian/)
+
+> 打开即可游玩，建议使用电脑键盘操作。若长时间未加载，请按 `Ctrl + F5` 强制刷新。
 
 ## 技术栈
 
